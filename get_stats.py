@@ -6,14 +6,14 @@ def main_menu():
     print("------------- ------------- ------------- ------------- ------------- ------------- ------------- ------------- \n")
     print("\n")
     print("Welcome to the visualizer tool, please choose which behaviour you want to visualize:\n")
-    print("1. Minor CPU Model")
+    print("1. Minor CPU")
     print("2. Trace CPU")
     print("3. Exit\n")
     choice = input("Enter choice (1/2/3):")
     print("\n")
 
     if choice == '1':
-        cpu_model_menu("MinorCPUModel")
+        cpu_model_menu("MinorCPU")
     elif choice == '2':
         cpu_model_menu("TraceCPU")
     elif choice == '3':
@@ -71,13 +71,13 @@ def parameter_menu(cpu_model, architecture, benchmark):
     print("\n")
     print("Please select which parameter you want to see:\n")
     print("1. Cache size")
-    print("2. Politicas de reemplazo")
+    print("2. Replacement policies")
     print("3. Exit\n")
     choice = input("Enter choice (1/2/3): ")
     print("\n")
 
     if choice == '1':
-        statistic_menu(cpu_model, architecture, benchmark, "CacheSize")
+        statistic_menu(cpu_model, architecture, benchmark, "Cache")
     elif choice == '2':
         statistic_menu(cpu_model, architecture, benchmark, "PdR")
     elif choice == '3':
@@ -93,7 +93,7 @@ def statistic_menu(cpu_model, architecture, benchmark, parameter):
     print("Please select which parameter you want to see:\n")
     print("1. Data cache total misses")
     print("2. Data cache total hits")
-    print("3. Number of cpu cycles simulated")
+    print("3. Simulation time")
     print("4. Exit\n")
     choice = input("Enter choice (1/2/3/4): ")
     print("\n")
@@ -101,17 +101,18 @@ def statistic_menu(cpu_model, architecture, benchmark, parameter):
     # total misses data cache
     if choice == '1':
         show_path(cpu_model, architecture, benchmark, parameter, "system.cpu.dcache.overallMisses::total")
-        visualize(f"./stats/{cpu_model}/{architecture}/{benchmark}/{parameter}", "system.cpu.dcache.overallMisses::total")
+        visualize(cpu_model,architecture,benchmark, parameter, "system.cpu.dcache.overallMisses::total")
+        
 
     # total hits data cache
     elif choice == '2':
         show_path(cpu_model, architecture, benchmark, parameter, "system.cpu.dcache.overallHits::total")
-        visualize(f"./stats/{cpu_model}/{architecture}/{benchmark}/{parameter}", "system.cpu.dcache.overallHits::total")
+        visualize(cpu_model,architecture,benchmark, parameter, "system.cpu.dcache.overallHits::total")
 
-    # num cycles
+    # sim seconds
     elif choice == '3':
-        show_path(cpu_model, architecture, benchmark, parameter, "system.cpu.numCycles")
-        visualize(f"./stats/{cpu_model}/{architecture}/{benchmark}/{parameter}", "system.cpu.numCycles")
+        show_path(cpu_model, architecture, benchmark, parameter, "simSeconds")
+        visualize(cpu_model,architecture,benchmark, parameter, "simSeconds")
 
     elif choice == '4':
         print("Program terminated.")
@@ -144,64 +145,86 @@ def extract_statistics(file_path, statistic):
     return statistics
 
 
+def process_directory(directory, statistic):
+    # Define marker styles for each directory
+    directory_marker_mapping = {
+        "BiModeBP": 'o',  # Circle
+        "LocalBP": '^',  # Triangle
+        "TournamentBP": 's',  # Square
+    }
+    
+    # Get the marker style for the current directory
+    directory_marker = directory_marker_mapping.get(os.path.basename(directory), 'o')  # Default to circle
 
-def visualize(directory, statistic):
-    def on_close(event):
-        plt.close()
-        print("\n")
-        print("------------- ------------- ------------- ------------- ------------- ------------- ------------- ------------- \n")
-        print("\n")
-        print("Do you wish to keep using the program?\n")
-        print("1. Yes")
-        print("2. No")
-        choice = input("Enter choice (1/2):")
-        print("\n")
-
-        if choice == '1':
-            main_menu()
-        elif choice == '2':
-            print("Program terminated.")
-        else:
-            print("Invalid choice, please pick a valid option\n")
-            main_menu()
-
-    # Directory containing the text files
-
-    # Dictionary to store colors for each file
-    file_colors = {}
-
+    # Define colors for each directory
+    directory_color_mapping = {
+        "BiModeBP": 'blue',
+        "LocalBP": 'green',
+        "TournamentBP": 'red',
+    }
+    
+    # Get the color for the current directory
+    directory_color = directory_color_mapping.get(os.path.basename(directory), 'blue')  # Default to blue
+    
     # Lists to store x and y values for all files
     x_values = []
     y_values = []
-
-    # Create a figure
-    fig, ax = plt.subplots()
-
-    # Connect the close event to the on_close function
-    fig.canvas.mpl_connect('close_event', on_close)
-
+    
     # Iterate over each text file in the directory
     for i, filename in enumerate(os.listdir(directory)):
         if filename.endswith('.txt'):
             file_path = os.path.join(directory, filename)
             # Extract statistics from the file
             statistics = extract_statistics(file_path, statistic)
-            # Generate a unique color for the file
-            file_color = plt.cm.tab10(i)
-            file_colors[filename] = file_color
-            # Append statistics to lists with the file's color
+            # Append statistics to lists with the directory's marker style
             for stat, value in statistics:
                 x_values.append(filename)
                 y_values.append(value)
-                plt.scatter(filename[:-4], value, color=file_color, label=filename[:-4])
+                plt.scatter(filename[:-4], value, marker=directory_marker, color=directory_color, label=filename[:-4])
 
-    # Create a legend
-    plt.legend(title='Stats')
+    # Recursively process subdirectories
+    for subdir in os.listdir(directory):
+        subdir_path = os.path.join(directory, subdir)
+        if os.path.isdir(subdir_path):
+            # Call process_directory for each subdirectory
+            process_directory(subdir_path, statistic)
 
+def visualize(cpu_model,architecture,benchmark, parameter, statistic):
+
+    directory = f"./stats/{cpu_model}/{architecture}/{benchmark}/{parameter}"
+    process_directory(directory, statistic)
+
+    directory_color_mapping = {
+        "BiModeBP": 'blue',
+        "LocalBP": 'green',
+        "TournamentBP": 'red',
+    }
+    custom_legend = []
+    for directory, color in directory_color_mapping.items():
+        custom_legend.append(plt.Line2D([0], [0], marker='o', color='w', label=directory, markerfacecolor=color, markersize=10))
+
+    plt.legend(handles=custom_legend)
+
+    
+    label_x_mapping = {
+            "system.cpu.dcache.overallMisses::total" : "Cache size and branch predictor" if parameter == "Cache" else "Replacement policy and branch predictor" ,
+            "system.cpu.dcache.overallHits::total" : "Cache size and branch predictor",
+            "simSeconds" : "Cache size and branch predictor" 
+    }
+    label_y_mapping = {
+            "system.cpu.dcache.overallMisses::total" : "Count of Misses",
+            "system.cpu.dcache.overallHits::total" : "Count of Hits",
+            "simSeconds" : "Time (s)" 
+    }
+    title_mapping = {
+            "system.cpu.dcache.overallMisses::total" : f"Data cache misses from a {benchmark} benchmark with the {architecture} using {cpu_model}",
+            "system.cpu.dcache.overallHits::total" : f"Data cache hits from a {benchmark} benchmark with the {architecture} using {cpu_model}",
+            "simSeconds" : f"Time the simulation takes to run from a {benchmark} benchmark with the {architecture} using {cpu_model}" 
+    }
     # Customize plot appearance
-    plt.xlabel('VARIACIONES')
-    plt.ylabel('VALORES')
-    plt.title('TITULO')
+    plt.xlabel(label_x_mapping[statistic])
+    plt.ylabel(label_y_mapping[statistic])
+    plt.title(title_mapping[statistic])
     plt.xticks(rotation=45, ha='right')
     plt.tight_layout()
     plt.show()
