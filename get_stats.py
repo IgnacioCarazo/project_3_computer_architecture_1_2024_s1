@@ -1,5 +1,6 @@
 import os
 import matplotlib.pyplot as plt
+import pandas as pd
 
 def main_menu():
     print("\n")
@@ -7,7 +8,7 @@ def main_menu():
     print("\n")
     print("Welcome to the visualizer tool, please choose which behaviour you want to visualize:\n")
     print("1. Minor CPU")
-    print("2. Trace CPU")
+    print("2. O3CPU")
     print("3. Exit\n")
     choice = input("Enter choice (1/2/3):")
     print("\n")
@@ -15,7 +16,7 @@ def main_menu():
     if choice == '1':
         cpu_model_menu("MinorCPU")
     elif choice == '2':
-        cpu_model_menu("TraceCPU")
+        cpu_model_menu("O3CPU")
     elif choice == '3':
         print("Program terminated.")
     else:
@@ -127,72 +128,70 @@ def show_path(cpu_model, architecture, benchmark, parameter, statistic):
 
 def extract_statistics(file_path, statistic):
 
-    # List to store the extracted values
     statistics = []
 
     # Read the file line by line
     with open(file_path, 'r') as file:
         for line in file:
-            # Split the line by spaces
             parts = line.split()
-            if len(parts) >= 2:  # Ensure there are at least two parts
-                # Check if the first part matches one of the options
+            if len(parts) >= 2:
                 if parts[0] == statistic:
-                    # Extract the value and store it in the list
                     value = float(parts[1])
                     statistics.append((statistic, value))
 
     return statistics
 
 
-def process_directory(directory, statistic):
-    # Define marker styles for each directory
+def process_directory(directory, statistic, parameter, data):
     directory_marker_mapping = {
-        "BiModeBP": 'o',  # Circle
-        "LocalBP": '^',  # Triangle
-        "TournamentBP": 's',  # Square
+        "BiModeBP": 'o', 
+        "LocalBP": '^',  
+        "TournamentBP": 's',  
     }
     
-    # Get the marker style for the current directory
-    directory_marker = directory_marker_mapping.get(os.path.basename(directory), 'o')  # Default to circle
+    directory_marker = directory_marker_mapping.get(os.path.basename(directory), 'o')  
 
-    # Define colors for each directory
     directory_color_mapping = {
         "BiModeBP": 'blue',
         "LocalBP": 'green',
         "TournamentBP": 'red',
     }
     
-    # Get the color for the current directory
-    directory_color = directory_color_mapping.get(os.path.basename(directory), 'blue')  # Default to blue
+    directory_color = directory_color_mapping.get(os.path.basename(directory), 'blue')  
     
-    # Lists to store x and y values for all files
     x_values = []
     y_values = []
+
     
     # Iterate over each text file in the directory
     for i, filename in enumerate(os.listdir(directory)):
+        cache_sizes = {"stats1.txt":"32KB", "stats2.txt":"64KB", "stats3.txt":"128KB", "stats4.txt":"256KB", "stats5.txt":"512KB"}
+        pdr = {"stats1.txt":"LRU", "stats2.txt":"FIFO", "stats3.txt":"RANDOM", "stats4.txt":"MRU", "stats5.txt":"LFU"}
         if filename.endswith('.txt'):
             file_path = os.path.join(directory, filename)
-            # Extract statistics from the file
             statistics = extract_statistics(file_path, statistic)
-            # Append statistics to lists with the directory's marker style
-            for stat, value in statistics:
-                x_values.append(filename)
-                y_values.append(value)
-                plt.scatter(filename[:-4], value, marker=directory_marker, color=directory_color, label=filename[:-4])
 
+            for stat, value in statistics:
+                x_parameter_label = cache_sizes[filename] if parameter == "Cache" else pdr[filename]
+                label = f"{x_parameter_label}_{os.path.basename(directory)}"
+                data.append((label.split('_')[0], value, os.path.basename(directory)))
+                plt.scatter(label, value, marker=directory_marker, color=directory_color, label=filename[:-4])
+                # Annotate the point with its value
+                plt.annotate(f'{value}', (label, value), textcoords="offset points", xytext=(0,10), ha='right')
+    
     # Recursively process subdirectories
     for subdir in os.listdir(directory):
         subdir_path = os.path.join(directory, subdir)
         if os.path.isdir(subdir_path):
             # Call process_directory for each subdirectory
-            process_directory(subdir_path, statistic)
+            process_directory(subdir_path, statistic, parameter, data)
 
-def visualize(cpu_model,architecture,benchmark, parameter, statistic):
-
+def visualize(cpu_model, architecture, benchmark, parameter, statistic):
+    # Create a list to hold all data
+    data = []
+    
     directory = f"./stats/{cpu_model}/{architecture}/{benchmark}/{parameter}"
-    process_directory(directory, statistic)
+    process_directory(directory, statistic, parameter, data)
 
     directory_color_mapping = {
         "BiModeBP": 'blue',
@@ -212,15 +211,21 @@ def visualize(cpu_model,architecture,benchmark, parameter, statistic):
             "simSeconds" : "Cache size and branch predictor" 
     }
     label_y_mapping = {
-            "system.cpu.dcache.overallMisses::total" : "Count of Misses",
-            "system.cpu.dcache.overallHits::total" : "Count of Hits",
+            "system.cpu.dcache.overallMisses::total" : "Count of dCache Misses",
+            "system.cpu.dcache.overallHits::total" : "Count of dCache Hits",
             "simSeconds" : "Time (s)" 
     }
     title_mapping = {
             "system.cpu.dcache.overallMisses::total" : f"Data cache misses from a {benchmark} benchmark with the {architecture} using {cpu_model}",
             "system.cpu.dcache.overallHits::total" : f"Data cache hits from a {benchmark} benchmark with the {architecture} using {cpu_model}",
-            "simSeconds" : f"Time the simulation takes to run from a {benchmark} benchmark with the {architecture} using {cpu_model}" 
+            "simSeconds" : f"Time the simulation takes to run from a {benchmark} benchmark with {architecture} using {cpu_model}" 
     }
+    # statistic_mapping = {
+    #         "system.cpu.dcache.overallMisses::total" : "Dcache-missess",
+    #         "system.cpu.dcache.overallHits::total" : "Dcache-hits",
+    #         "simSeconds" : "simSeconds" 
+    # }
+
     # Customize plot appearance
     plt.xlabel(label_x_mapping[statistic])
     plt.ylabel(label_y_mapping[statistic])
@@ -229,6 +234,16 @@ def visualize(cpu_model,architecture,benchmark, parameter, statistic):
     plt.tight_layout()
     plt.show()
     
+
+    # # Create a DataFrame with all the collected data
+    # df = pd.DataFrame(data, columns=['Caché Size', label_y_mapping[statistic], 'Branch Predictor'])
+
+    # plot_file_path = os.path.join('graphs', f'{cpu_model}_{architecture}_{benchmark}_{parameter}_{statistic_mapping[statistic]}.png')
+    # plt.savefig(plot_file_path, bbox_inches='tight')
+
+    
+    # file_path = os.path.join('tables', f'{cpu_model}_{architecture}_{benchmark}_{parameter}_{statistic_mapping[statistic]}.xlsx')
+    # df.to_excel(file_path, index=False)
 
 if __name__ == "__main__":
     main_menu()
