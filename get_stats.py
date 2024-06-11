@@ -7,7 +7,7 @@ def main_menu():
         print("\n")
         print("------------- ------------- ------------- ------------- ------------- ------------- ------------- ------------- \n")
         print("\n")
-        print("Welcome to the visualizer tool, please choose which behaviour you want to visualize:\n")
+        print("Welcome to the visualizer tool, please choose which configuration you want to visualize:\n")
         print("1. Minor CPU")
         print("2. O3CPU")
         print("3. Exit\n")
