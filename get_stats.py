@@ -164,8 +164,8 @@ def process_directory(directory, statistic, parameter, data):
             process_directory(subdir_path, statistic, parameter, data)
 
 def visualize(cpu_model, architecture, benchmark, parameter, statistic):
-    # plt.ion()  # Enable interactive mode
-    # plt.figure()  # Create a new figure
+    plt.ion()  # Enable interactive mode
+    plt.figure()  # Create a new figure
     data = []
     directory = f"./stats/{cpu_model}/{architecture}/{benchmark}/{parameter}"
     process_directory(directory, statistic, parameter, data)
@@ -207,17 +207,17 @@ def visualize(cpu_model, architecture, benchmark, parameter, statistic):
     plt.title(title_mapping[statistic])
     plt.xticks(rotation=45, ha='right')
     plt.tight_layout()
-    # plt.show()
+    plt.show()
 
-     # Create a DataFrame with all the collected data
-    df = pd.DataFrame(data, columns=['Caché Size', label_y_mapping[statistic], 'Branch Predictor'])
+    #  # Create a DataFrame with all the collected data
+    # df = pd.DataFrame(data, columns=['Caché Size', label_y_mapping[statistic], 'Branch Predictor'])
 
-    plot_file_path = os.path.join('graphs', f'{cpu_model}_{architecture}_{benchmark}_{parameter}_{statistic_mapping[statistic]}.png')
-    plt.savefig(plot_file_path, bbox_inches='tight')
+    # plot_file_path = os.path.join('graphs', f'{cpu_model}_{architecture}_{benchmark}_{parameter}_{statistic_mapping[statistic]}.png')
+    # plt.savefig(plot_file_path, bbox_inches='tight')
 
     
-    file_path = os.path.join('tables', f'{cpu_model}_{architecture}_{benchmark}_{parameter}_{statistic_mapping[statistic]}.xlsx')
-    df.to_excel(file_path, index=False)
+    # file_path = os.path.join('tables', f'{cpu_model}_{architecture}_{benchmark}_{parameter}_{statistic_mapping[statistic]}.xlsx')
+    # df.to_excel(file_path, index=False)
 
 # Start the program
 main_menu()
